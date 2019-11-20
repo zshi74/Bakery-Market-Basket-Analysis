@@ -1,0 +1,162 @@
+---
+title: "Bakery Market Basket Analysis"
+author: "Stone Shi"
+date: "11/18/2019"
+output:
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Collect the data
+```{r, message = FALSE}
+library(arules)
+library(tidyverse)
+
+bread <- read.transactions("BreadBasket_DMS.csv", cols = c(3,4), sep = ",", format = "single", quote = "\"", rm.duplicates = TRUE)
+
+```
+
+# 2. Exploratory Data Analysis
+## 2.1 Basic Summary Output
+Let's take a look at the summary stats for the dataset. Through the summary output, we can see that there are in total **6614** transactions and **104** items in my dataset. The top 5 frequent items are: *Coffee*, *Bread*, *Tea*, *Cake* and *Pastry*. The length distribution tells us there are 2556 transactions contain one item, 2154 transactions contain two items, 1078 transactions contain 3 items, etc. The maximum count of item in a single transaction is 10.
+
+```{r}
+summary(bread)
+```
+
+## 2.2 Transactions Exploration
+```{r}
+image(sample(bread,100))
+```
+
+Let's look at our first five transactions. 
+```{r}
+inspect(bread[1:100])
+```
+
+Let's get to know the frequency of our first five items from our transactions.
+
+```{r}
+itemFrequency(bread[,1:5])
+```
+
+Then we can also utilize the *itemFrequencyPlot()* function to visualize the frequency of our items.
+
+Let's produce a histogram of items with at least 5 percent support.
+```{r}
+itemFrequencyPlot(bread, support = 0.05)
+```
+
+We can also produce a histogram for the top 20 frequent item sets.
+```{r}
+itemFrequencyPlot(bread, topN = 20)
+```
+
+#3. Market Basket Analysis
+The *arules* pakcage in R has a limited number of functions for exploring the data. So in order to continue our market basket analysis, we need to create a dataframe of the items and their purchase frequency. Let's take a look at the whole itemFrequency.
+
+```{r}
+itemFrequency(bread)
+```
+
+Now, we can convert the data to a data frame.
+
+```{r}
+bakery.frequency <-
+  data.frame(
+    Items = names(itemFrequency(bread)),
+    Frequency = itemFrequency(bread),
+    row.names = NULL
+  )
+
+head(bakery.frequency)
+```
+
+
+> 10 most frequently bought items at the store.
+
+```{r}
+bakery.frequency %>% 
+  arrange(desc(Frequency)) %>% 
+  slice(1:20) %>% 
+  ggplot() +
+  geom_col(aes(x = reorder(Items, Frequency), y = Frequency), fill = "lightblue", color = "black")+
+  labs(x = "Items") +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none")
+        
+```
+
+> 10 least frequently bought items at the store.
+
+```{r}
+bakery.frequency %>% 
+  arrange(Frequency) %>% 
+  slice(1:20) %>% 
+  ggplot() +
+  geom_col(aes(x = reorder(Items, -Frequency), y = Frequency), fill = "#f6abb6", color = "black")+
+  labs(x = "Items") +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+# 3. Train the model
+
+I will use **apriori()** function to generate some rules. 
+
+```{r}
+bakery_rules <- apriori(bread, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+```
+
+
+# 4. "Evaluate" the Model's Performance.
+## 4.1 Understand the rules
+Let's first get the summary of the bakery association rules.
+```{r}
+summary(bakery_rules)
+```
+
+
+Then we can take a look at the rules we have:
+```{r}
+inspect(bakery_rules)
+```
+
+From the rules we have above, we can convey some key information:
+
+* 59% of the customers who bought a spanish brunch also bought a coffee.
+* 70% of the customers who bought a toast also bought a coffee.
+
+Looks like most of the customers who come to the bakery will buy a cup of coffee!
+
+## 4.2. Visualize the rules
+
+We can also **visualize** our rules.
+
+```{r}
+library(arulesViz)
+plot(bakery_rules, measure = c("support", "lift"), shading = "confidence")
+```
+
+We can use another visualization to represent our rules.
+
+```{r}
+plot(bakery_rules, method = "graph")
+```
+
+# 5. "Improve" the Model's Performance
+
+I saw the item "NONE" a lot of times through our analysis, so I want to eliminate it.
+```{r}
+bakery_rules %>% 
+  subset(!lhs %in% "NONE") %>% 
+  plot(., method = "graph")
+```
+
+Now our rules look good! 
