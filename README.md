@@ -1,4 +1,3 @@
-# Machine Learning
-This repository contains the machine learning projects implemented in R.
+## Bakery Market Basket Analysis
 
-Feel free to contact me via zshi4@nd.edu at any time. 
+In this analysis, I used the Apriori algorithm to perofrm a Market Basket Analysis which is commonly used to uncover the associates between items. 
